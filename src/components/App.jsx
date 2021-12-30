@@ -5,6 +5,7 @@ import ImageGallery from "./ImageGallery/ImageGallery";
 import Button from "./Button/Button";
 import Loader from "react-loader-spinner";
 import Modal from "./Modal/Modal";
+import ErrorSection from "./ErrorSection/ErrorSection";
 
 class App extends Component {
   state = {
@@ -14,7 +15,8 @@ class App extends Component {
     currentPage: 1,
     isLoading: false,
     showModal: false,
-    imageItem: {}
+    imageItem: {},
+    hasError: false,
   };
 
   componentDidUpdate(prevProps, prevState) {
@@ -29,6 +31,7 @@ class App extends Component {
       currentPage: 1,
       imageArray: [],
       haveLoadMoreBtn: false,
+      hasError: false,
     });
   };
 
@@ -38,21 +41,31 @@ class App extends Component {
     });
     getImageApi(this.state.queryForm, this.state.currentPage)
       .then((data) => {
-        this.setState((prevState) => {
-          return {
-            currentPage: prevState.currentPage + 1,
-            imageArray: [...prevState.imageArray, ...data.hits],
-            haveLoadMoreBtn: true,
-          };
-        });
-        const element = document.querySelector('.Button');
-        element.scrollIntoView({
-          behavior: 'smooth',
-          block: 'end',
-        });
+        if (data.hits.length === 0) {
+          return this.setState({
+            hasError: true,
+            haveLoadMoreBtn: false,
+          });
+        } else {
+          this.setState((prevState) => {
+            return {
+              currentPage: prevState.currentPage + 1,
+              imageArray: [...prevState.imageArray, ...data.hits],
+              haveLoadMoreBtn: true,
+            };
+          });
+          const element = document.querySelector(".Button");
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+          });
+        }
       })
       .catch((err) => {
         console.log(err);
+        this.setState({
+          hasError: true,
+        });
       })
       .finally(() => {
         this.setState({
@@ -64,24 +77,45 @@ class App extends Component {
   toggleModal = (itemId) => {
     this.setState((prevState) => {
       return {
-        imageItem: this.state.imageArray.find(item => itemId === item.id),
-        showModal: !prevState.showModal
-      }
+        imageItem: this.state.imageArray.find((item) => itemId === item.id),
+        showModal: !prevState.showModal,
+      };
     });
   };
 
   render() {
-    const {imageItem, imageArray, haveLoadMoreBtn, isLoading, showModal } = this.state;
+    const {
+      imageItem,
+      imageArray,
+      haveLoadMoreBtn,
+      isLoading,
+      showModal,
+      hasError,
+    } = this.state;
     return (
       <>
         <Searchbar onSubmit={this.handleChange} />
         <section className="Gallery__section">
-          {showModal && <Modal tagImage={imageItem.tags} imageUrl={imageItem.largeImageURL} onCloseFn={this.toggleModal} />}
-          <ImageGallery imageArray={imageArray} showModal={showModal} openModal={this.toggleModal} />
-          {isLoading && <Loader type="ThreeDots" color="#3f51b5" height={80} width={80} />}
-          {haveLoadMoreBtn &&
-              <Button loadMoreFn={this.onSubmitForm} />
-          }
+          {showModal && (
+            <Modal
+              tagImage={imageItem.tags}
+              imageUrl={imageItem.largeImageURL}
+              onCloseFn={this.toggleModal}
+            />
+          )}
+          {hasError ? (
+            <ErrorSection />
+          ) : (
+            <ImageGallery
+              imageArray={imageArray}
+              showModal={showModal}
+              openModal={this.toggleModal}
+            />
+          )}
+          {isLoading && (
+            <Loader type="ThreeDots" color="#3f51b5" height={80} width={80} />
+          )}
+          {haveLoadMoreBtn && <Button loadMoreFn={this.onSubmitForm} />}
         </section>
       </>
     );
